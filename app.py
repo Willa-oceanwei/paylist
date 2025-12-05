@@ -17,13 +17,11 @@ try:
         scopes=SCOPES
     )
     gc = gspread.authorize(creds)
-
-    SHEET_URL = "https://docs.google.com/spreadsheets/d/17Tm4ua_vF6E5fi49eNDgHMI25us1Q-u6TqMXmLaGugs/edit#gid=0"
     sheet = gc.open_by_url(SHEET_URL).sheet1
 
-    st.success("成功連線到 Google Sheet！")
-    st.write("A1:", sheet.acell("A1").value)
+    st.success("連線成功！")
 
 except Exception as e:
-    st.error("❌ 錯誤訊息：")
-    st.code(str(e))
+    import traceback
+    st.error("❌ Google Sheet 錯誤，以下是完整堆疊：")
+    st.code(traceback.format_exc())
