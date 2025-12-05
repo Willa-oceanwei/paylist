@@ -18,7 +18,8 @@ sheet = gc.open_by_url(SHEET_URL).sheet1
 # ====== 讀取 Google Sheet ======
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
-df.columns = [col.strip() for col in df.columns]  # 去除空白
+
+# 處理欄位
 df['客戶名稱'] = df['客戶名稱'].astype(str).str.strip()
 
 # 民國日期轉西元，只保留年月日
@@ -39,26 +40,26 @@ type_map = {'現': '現金', '支': '支票', '支票+現金': '支票+現金'}
 df['型式'] = df['型式'].map(type_map).fillna(df['型式'])
 
 # ====== Streamlit UI ======
-st.markdown("<h2 style='font-size:24px; font-weight:bold;'>收帳資料查詢與新增</h2>", unsafe_allow_html=True)
+st.title("收帳資料查詢與新增")
 
 # 上方區塊：查詢
-with st.expander("<b style='font-size:22px'>🔍 查詢近四個月資料</b>", expanded=True):
+with st.expander("🔍 查詢近四個月資料", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
-        search_customer = st.text_input("客戶名稱", key="search_customer")
+        search_customer = st.text_input("輸入客戶名稱")
     with col2:
         date_range = st.date_input(
             "選擇日期區間 (可留空，自動抓本月+前三月)",
             value=[]
         )
 
-    if st.button("搜尋", key="search_button"):
+    # 只有在輸入客戶名稱或選日期後才顯示表格
+    if search_customer or date_range:
         filtered = df.copy()
         if search_customer:
-            filtered = filtered[filtered['客戶名稱'].str.contains(search_customer, na=False, case=False)]
+            filtered = filtered[filtered['客戶名稱'].str.contains(search_customer, case=False, na=False)]
 
-        # 日期範圍
-        if len(date_range) == 2:
+        if date_range:
             start_date, end_date = date_range
         else:
             today = pd.Timestamp.today()
@@ -68,33 +69,34 @@ with st.expander("<b style='font-size:22px'>🔍 查詢近四個月資料</b>", 
         filtered = filtered[(filtered['日期'] >= start_date) & (filtered['日期'] <= end_date)]
 
         if not filtered.empty:
+            # 交錯底色
             def highlight_rows(x):
                 return ['background-color: #f9f9f9' if i%2==0 else 'background-color: #ffffff' for i in range(len(x))]
-            st.dataframe(filtered[['日期','客戶名稱','金額','型式','負責人員','帳款月份','備註']].style.apply(highlight_rows, axis=1), use_container_width=True)
+            st.dataframe(filtered.style.apply(highlight_rows, axis=1), use_container_width=True)
         else:
             st.warning("❌ 沒有符合條件的資料")
 
 # 下方區塊：新增資料
-with st.expander("<b style='font-size:22px'>➕ 新增收帳資料</b>", expanded=True):
+with st.expander("➕ 新增收帳資料", expanded=True):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        new_date = st.date_input("日期", key="new_date")
+        new_date = st.date_input("日期")
     with col2:
-        new_customer = st.text_input("客戶名稱", value="", key="new_customer")
+        new_customer = st.text_input("客戶名稱", value="")  # 預設空白
     with col3:
-        new_amount = st.number_input("金額", min_value=0, key="new_amount")
+        new_amount = st.number_input("金額", min_value=0)
     with col4:
-        new_type = st.selectbox("型式", ["支票", "現金", "支票+現金"], key="new_type")
+        new_type = st.selectbox("型式", ["支票", "現金", "支票+現金"])
 
     col5, col6, col7 = st.columns(3)
     with col5:
-        new_person = st.selectbox("負責人", ["德", "Q", "其他"], key="new_person")
+        new_person = st.text_input("負責人員")
     with col6:
-        new_month = st.text_input("帳款月份", key="new_month")
+        new_month = st.text_input("帳款月份")
     with col7:
-        new_note = st.text_input("備註", max_chars=200, key="new_note")
+        new_note = st.text_input("備註", max_chars=200)
 
-    if st.button("儲存新增資料", key="save_button"):
+    if st.button("儲存新增資料"):
         new_row = [
             f"{new_date.year-1911}{new_date.month:02d}{new_date.day:02d}", # 民國日期
             new_customer,
