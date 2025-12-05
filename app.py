@@ -98,7 +98,7 @@ with st.expander("➕ 新增收帳資料", expanded=True):
 
     col5, col6, col7 = st.columns(3)
     with col5:
-        new_person = st.text_input("負責人員")
+        new_person = st.selectbox("負責人員", ["德", "Q", "其他"])
     with col6:
         new_month = st.text_input("帳款月份")
     with col7:
@@ -116,3 +116,4 @@ with st.expander("➕ 新增收帳資料", expanded=True):
         ]
         sheet.append_row(new_row)
         st.success("✅ 已新增資料！")
+
