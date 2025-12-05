@@ -1,95 +1,107 @@
 import streamlit as st
+import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-import pandas as pd
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
-# ====== Google Sheets 連線 ======
+# ====== Google Sheet 設定 ======
 SERVICE_ACCOUNT_INFO = st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPES)
 gc = gspread.authorize(creds)
+
 SHEET_URL = "https://docs.google.com/spreadsheets/d/17Tm4ua_vF6E5fi49eNDgHMI25us1Q-u6TqMXmLaGugs/edit#gid=0"
 sheet = gc.open_by_url(SHEET_URL).sheet1
 
-# ====== 讀取資料 ======
-records = sheet.get_all_records()
-df = pd.DataFrame(records)
+# ====== 讀取 Google Sheet ======
+data = sheet.get_all_records()
+df = pd.DataFrame(data)
 
-# 去除前後空格
+# ====== 處理欄位 ======
 df['客戶名稱'] = df['客戶名稱'].astype(str).str.strip()
-df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
 
-# ====== 查詢區 ======
-st.header("📊 收帳資料查詢")
+# 民國日期轉西元
+def convert_roc_to_datetime(roc_date):
+    try:
+        roc_date = str(int(roc_date))
+        year = int(roc_date[:3]) + 1911
+        month = int(roc_date[3:5])
+        day = int(roc_date[5:7])
+        return pd.Timestamp(year, month, day)
+    except:
+        return pd.NaT
 
-col1, col2 = st.columns(2)
-with col1:
-    search_customer = st.text_input("客戶名稱", "").strip()
-with col2:
-    start_date = st.date_input("開始日期", value=None)
-    end_date = st.date_input("結束日期", value=None)
+df['日期'] = df['日期'].apply(convert_roc_to_datetime)
 
-# 預設日期區間：本月 + 前三個月
-today = datetime.today()
-if start_date is None or end_date is None:
-    start_date = (today.replace(day=1) - relativedelta(months=3))
-    end_date = today
+# 型式轉換
+type_map = {'現': '現金', '支': '支票', '支票+現金': '支票+現金'}
+df['型式'] = df['型式'].map(type_map).fillna(df['型式'])
 
-# 篩選資料
-filtered = df.copy()
+# ====== Streamlit UI ======
+st.title("收帳資料查詢與新增")
 
-# 客戶名稱篩選
-if search_customer:
-    filtered = filtered[filtered['客戶名稱'].str.contains(search_customer, case=False, na=False)]
+# 上方區塊：查詢
+with st.expander("🔍 查詢近四個月資料", expanded=True):
+    col1, col2 = st.columns(2)
+    with col1:
+        search_customer = st.text_input("輸入客戶名稱")
+    with col2:
+        date_range = st.date_input(
+            "選擇日期區間 (可留空，自動抓本月+前三月)",
+            value=[]
+        )
 
-# 日期篩選
-filtered = filtered[
-    (filtered['日期'] >= pd.to_datetime(start_date)) &
-    (filtered['日期'] <= pd.to_datetime(end_date))
-]
+    # 篩選資料
+    filtered = df.copy()
+    if search_customer:
+        filtered = filtered[filtered['客戶名稱'].str.contains(search_customer, case=False, na=False)]
 
-st.write("篩選結果:")
-if filtered.empty:
-    st.warning("❌ 沒有符合條件的資料")
-else:
-    st.dataframe(filtered.reset_index(drop=True), use_container_width=True)
+    if date_range:
+        start_date, end_date = date_range
+    else:
+        today = pd.Timestamp.today()
+        start_date = (today - pd.DateOffset(months=3)).replace(day=1)
+        end_date = today
 
-# ====== 新增收帳資料區 ======
-st.header("➕ 新增收帳資料")
+    filtered = filtered[(filtered['日期'] >= start_date) & (filtered['日期'] <= end_date)]
 
-with st.form("add_payment_form"):
-    # 上方四欄
+    if not filtered.empty:
+        st.dataframe(filtered, use_container_width=True)
+    else:
+        st.warning("❌ 沒有符合條件的資料")
+
+# 下方區塊：新增資料
+with st.expander("➕ 新增收帳資料", expanded=True):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        new_date = st.date_input("日期", value=today)
+        new_date = st.date_input("日期")
     with col2:
         new_customer = st.text_input("客戶名稱")
     with col3:
-        new_amount = st.text_input("金額")  # 開放文字輸入
+        new_amount = st.number_input("金額", min_value=0)
     with col4:
         new_type = st.selectbox("型式", ["支票", "現金", "支票+現金"])
 
-    # 下方三欄
-    col5, col6, col7 = st.columns([1,1,2])
+    col5, col6, col7 = st.columns(3)
     with col5:
         new_person = st.text_input("負責人員")
     with col6:
-        new_month = st.text_input("帳款月份 (YYYY-MM)")
+        new_month = st.text_input("帳款月份")
     with col7:
-        new_note = st.text_area("備註", height=50)
+        new_note = st.text_input("備註", max_chars=200)
 
-    submitted = st.form_submit_button("新增收帳資料")
-    if submitted:
+    if st.button("儲存新增資料"):
+        # 寫入 Google Sheet
         new_row = [
-            new_date.strftime("%Y-%m-%d"),
-            new_customer.strip(),
-            new_amount.strip(),
+            f"{new_date.year-1911}{new_date.month:02d}{new_date.day:02d}", # 民國日期
+            new_customer,
+            new_amount,
             new_type,
-            new_person.strip(),
-            new_month.strip(),
-            new_note.strip()
+            new_person,
+            new_month,
+            new_note
         ]
         sheet.append_row(new_row)
-        st.success("✅ 新增成功！")
+        st.success("✅ 已新增資料！")
