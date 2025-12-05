@@ -85,6 +85,7 @@ with st.expander("🔍 查詢近四個月資料", expanded=True):
             st.warning("❌ 沒有符合條件的資料")
 
 # ====== 新增資料區 ======
+# ====== 新增資料區 ======
 with st.expander("➕ 新增收帳資料", expanded=True):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -94,11 +95,13 @@ with st.expander("➕ 新增收帳資料", expanded=True):
     with col3:
         new_amount = st.number_input("金額", min_value=0)
     with col4:
-        new_type = st.selectbox("型式", ["支票", "現金", "支票+現金"])
+        # 型式預設空白
+        new_type = st.selectbox("型式", [""] + ["支票", "現金", "支票+現金"])
 
     col5, col6, col7 = st.columns(3)
     with col5:
-        new_person = st.selectbox("負責人員", ["德", "Q", "其他"])
+        # 負責人預設空白
+        new_person = st.selectbox("負責人員", [""] + ["德", "Q", "其他"])
     with col6:
         new_month = st.text_input("帳款月份")
     with col7:
