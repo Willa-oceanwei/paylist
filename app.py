@@ -1,15 +1,16 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
+import json
 import pandas as pd
 from datetime import datetime, timedelta, timezone, date
-import json, os
+import os
 
 # ===========================
 # 頁面設定
 # ===========================
 st.set_page_config(
-    page_title="💰 收帳查詢系統（安全版）",
+    page_title="收帳查詢系統",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -46,25 +47,43 @@ st.sidebar.markdown(f"🕓 **今日登入次數：** {login_data[today_str]['cou
 st.sidebar.markdown(f"🗓️ **最近登入時間：** {login_data[today_str]['times'][-1]}")
 
 # ===========================
-# Google Sheet 安全連線
+# Google Sheet 連線
 # ===========================
-SERVICE_ACCOUNT_INFO = st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
+SERVICE_ACCOUNT_INFO = json.loads(st.secrets["GCP_SERVICE_ACCOUNT_JSON"])
 creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO)
 gc = gspread.authorize(creds)
-
-# TODO: 替換成你的 Google Sheet 網址
-SHEET_URL = "你的Google Sheet網址"
-sheet = gc.open_by_url(SHEET_URL).sheet1
+sheet = gc.open("收帳記錄").sheet1  # 改成你的 Sheet 名稱
 
 # ===========================
 # 系統標題
 # ===========================
-st.title("💰 收帳查詢系統（安全版）")
+st.title("💰 收帳查詢系統（前四月）")
 
 # ===========================
-# 新增收帳資料區
+# 客戶名稱輸入
 # ===========================
-st.header("📌 新增收帳資料")
+company_name = st.text_input("🔍 請輸入客戶名稱")
+st.markdown("---")
+
+# ===========================
+# 上班時間判斷（台灣時間）
+# ===========================
+now_taiwan = datetime.now(tz_taiwan)
+weekday = now_taiwan.weekday()  # 週一=0, 週日=6
+hour = now_taiwan.hour
+minute = now_taiwan.minute
+
+is_weekday = weekday < 5
+is_worktime = (8 <= hour < 17) or (hour == 17 and minute <= 30)
+
+if not (is_weekday and is_worktime):
+    st.error("⛔ 系統僅於【週一至週五 08:00～17:30】開放查詢。\n\n請於上班時間使用。")
+    st.stop()
+
+# ===========================
+# 新增資料表單
+# ===========================
+st.header("📥 新增收帳資料")
 with st.form("add_form"):
     date_input = st.date_input("日期", datetime.today())
     customer_input = st.text_input("客戶名稱")
@@ -74,7 +93,7 @@ with st.form("add_form"):
     month_input = st.text_input("帳款月份", value=datetime.today().strftime("%Y-%m"))
     note_input = st.text_input("備註")
     submitted = st.form_submit_button("儲存")
-    
+
     if submitted:
         sheet.append_row([
             date_input.strftime("%Y-%m-%d"),
@@ -93,53 +112,33 @@ st.markdown("---")
 # 查詢近四個月資料
 # ===========================
 st.header("🔍 查詢近四個月資料")
-company_name = st.text_input("🔎 請輸入客戶名稱查詢", "")
+today = datetime.today()
+start_date = (today.replace(day=1) - pd.DateOffset(months=3)).date()
 
-# 判斷當前時間是否在工作時間
-now_taiwan = datetime.now(tz_taiwan)
-weekday = now_taiwan.weekday()
-hour = now_taiwan.hour
-minute = now_taiwan.minute
-is_weekday = weekday < 5
-is_worktime = (8 <= hour < 17) or (hour == 17 and minute <= 30)
-
-if not (is_weekday and is_worktime):
-    st.error("⛔ 系統僅於【週一至週五 08:00～17:30】開放查詢。")
-    st.stop()
-
-if company_name:
-    records = sheet.get_all_records()
-    df = pd.DataFrame(records)
-    if not df.empty and "日期" in df.columns:
-        df['日期'] = pd.to_datetime(df['日期'])
-        start_date = (datetime.today().replace(day=1) - pd.DateOffset(months=3)).date()
-        filtered = df[(df['日期'] >= start_date) & (df['日期'] <= datetime.today())]
+records = sheet.get_all_records()
+df = pd.DataFrame(records)
+if not df.empty and '日期' in df.columns:
+    df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
+    if company_name:
+        filtered = df[(df['日期'] >= start_date) & (df['日期'] <= today)]
         filtered = filtered[filtered["客戶名稱"].str.contains(company_name, case=False, na=False)]
-
-        if not filtered.empty:
-            st.success(f"✅ 找到 {len(filtered)} 筆資料")
-            filtered_no_index = filtered.reset_index(drop=True)
-            filtered_no_index.index = [""] * len(filtered_no_index)
-            hide_index_style = """
-            <style>
-            .stDataFrame > div > div > div > div > div > div:nth-child(1) {
-                max-width: 10px;
-                min-width: 10px;
-                width: 10px;
-            }
-            </style>
-            """
-            st.markdown(hide_index_style, unsafe_allow_html=True)
-            st.dataframe(filtered_no_index, use_container_width=True)
-        else:
-            st.warning("⚠️ 找不到該客戶近四個月的資料。")
     else:
-        st.warning("⚠️ 沒有可用的收帳資料。")
+        filtered = df[(df['日期'] >= start_date) & (df['日期'] <= today)]
+
+    if not filtered.empty:
+        filtered = filtered.reset_index(drop=True)
+        filtered.index = [""] * len(filtered)
+        st.dataframe(filtered, use_container_width=True)
+        st.success(f"✅ 共 {len(filtered)} 筆資料")
+    else:
+        st.warning("⚠️ 沒有符合條件的資料")
+else:
+    st.warning("⚠️ 尚未有任何資料")
 
 st.markdown("---")
 
 # ===========================
-# 查看登入歷史紀錄
+# 查看登入歷史
 # ===========================
 with st.expander("📜 查看登入歷史紀錄"):
     for d, info in sorted(login_data.items(), reverse=True):
