@@ -87,15 +87,15 @@ with st.expander("➕ 新增收帳資料", expanded=True):
     with col1:
         new_date = st.date_input("日期")
     with col2:
-        new_customer = st.text_input("客戶名稱", value="")  # 預設空白
+        new_customer = st.text_input("客戶名稱", value="")
     with col3:
         new_amount = st.number_input("金額", min_value=0)
     with col4:
-        new_type = st.selectbox("型式", ["支票", "現金", "支票+現金"])
+        new_type = st.selectbox("型式", [""] + ["支票", "現金", "支票+現金"])
 
     col5, col6, col7 = st.columns(3)
     with col5:
-        new_person = st.text_input("負責人員")
+        new_person = st.selectbox("負責人員", [""] + ["德", "Q", "其他"])
     with col6:
         new_month = st.text_input("帳款月份")
     with col7:
@@ -103,7 +103,7 @@ with st.expander("➕ 新增收帳資料", expanded=True):
 
     if st.button("儲存新增資料"):
         new_row = [
-            f"{new_date.year-1911}{new_date.month:02d}{new_date.day:02d}", # 民國日期
+            f"{new_date.year-1911}{new_date.month:02d}{new_date.day:02d}",
             new_customer,
             new_amount,
             new_type,
@@ -113,3 +113,4 @@ with st.expander("➕ 新增收帳資料", expanded=True):
         ]
         sheet.append_row(new_row)
         st.success("✅ 已新增資料！")
+
