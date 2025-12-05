@@ -18,6 +18,8 @@ sheet = gc.open_by_url(SHEET_URL).sheet1
 # ====== 讀取 Google Sheet ======
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
+
+# 處理欄位
 df['客戶名稱'] = df['客戶名稱'].astype(str).str.strip()
 
 # 民國日期轉西元，只保留年月日
@@ -38,10 +40,10 @@ type_map = {'現': '現金', '支': '支票', '支票+現金': '支票+現金'}
 df['型式'] = df['型式'].map(type_map).fillna(df['型式'])
 
 # ====== Streamlit UI ======
-st.markdown("<h3 style='font-size:20px'>收帳資料查詢與新增</h3>", unsafe_allow_html=True)
+st.title("收帳資料查詢與新增")
 
 # 上方區塊：查詢
-with st.expander("<b style='font-size:22px'>🔍 查詢近四個月資料</b>", expanded=True):
+with st.expander("🔍 查詢近四個月資料", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
         search_customer = st.text_input("輸入客戶名稱")
@@ -75,7 +77,7 @@ with st.expander("<b style='font-size:22px'>🔍 查詢近四個月資料</b>", 
             st.warning("❌ 沒有符合條件的資料")
 
 # 下方區塊：新增資料
-with st.expander("<b style='font-size:22px'>➕ 新增收帳資料</b>", expanded=True):
+with st.expander("➕ 新增收帳資料", expanded=True):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         new_date = st.date_input("日期")
@@ -88,7 +90,7 @@ with st.expander("<b style='font-size:22px'>➕ 新增收帳資料</b>", expande
 
     col5, col6, col7 = st.columns(3)
     with col5:
-        new_person = st.selectbox("負責人", ["德", "Q", "其他"])
+        new_person = st.text_input("負責人員")
     with col6:
         new_month = st.text_input("帳款月份")
     with col7:
