@@ -49,7 +49,7 @@ with st.expander("🍭 查詢近四個月資料", expanded=True):
         search_customer = st.text_input("輸入客戶名稱")
     with col2:
         date_range = st.date_input(
-            "留空顯示當月及前三月)",
+            "(留空顯示當月及前三月)",
             value=[]
         )
     with col3:
