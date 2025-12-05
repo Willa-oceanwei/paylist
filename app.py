@@ -18,10 +18,20 @@ st.set_page_config(
 # 連線 Google Sheet
 # =========================
 SERVICE_ACCOUNT_INFO = st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
-creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO)
+
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+creds = Credentials.from_service_account_info(
+    SERVICE_ACCOUNT_INFO,
+    scopes=SCOPES
+)
+
 gc = gspread.authorize(creds)
 
-# 直接用 Sheet URL，避免名稱錯誤
+# 直接用 URL 開啟
 SHEET_URL = "https://docs.google.com/spreadsheets/d/17Tm4ua_vF6E5fi49eNDgHMI25us1Q-u6TqMXmLaGugs/edit#gid=0"
 sheet = gc.open_by_url(SHEET_URL).sheet1
 
