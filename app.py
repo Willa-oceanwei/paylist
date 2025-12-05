@@ -2,11 +2,9 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# =======================
-# Google Sheet 認證
-# =======================
+# ===== Google Sheet 認證 =====
 SERVICE_ACCOUNT_INFO = st.secrets["GCP_SERVICE_ACCOUNT_JSON"]
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -15,15 +13,11 @@ SCOPES = [
 creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPES)
 gc = gspread.authorize(creds)
 
-# =======================
-# 開啟 Google Sheet
-# =======================
+# ===== 開啟 Google Sheet =====
 SHEET_URL = "https://docs.google.com/spreadsheets/d/17Tm4ua_vF6E5fi49eNDgHMI25us1Q-u6TqMXmLaGugs/edit#gid=0"
 sheet = gc.open_by_url(SHEET_URL).sheet1
 
-# =======================
-# 查詢近四個月資料（可輸入條件）
-# =======================
+# ===== 查詢區塊 =====
 st.header("查詢收帳資料")
 
 with st.form("search_form"):
@@ -31,33 +25,39 @@ with st.form("search_form"):
     with col1:
         search_customer = st.text_input("客戶名稱")
     with col2:
-        start_date = st.date_input("開始日期", datetime.today().replace(day=1))
+        start_date = st.date_input("開始日期", value=None)
     with col3:
-        end_date = st.date_input("結束日期", datetime.today())
+        end_date = st.date_input("結束日期", value=None)
     
     search_button = st.form_submit_button("查詢")
 
 if search_button:
     records = sheet.get_all_records()
     df = pd.DataFrame(records)
+    
     if not df.empty:
         df['日期'] = pd.to_datetime(df['日期'])
-        filtered = df[
-            (df['日期'] >= pd.Timestamp(start_date)) &
-            (df['日期'] <= pd.Timestamp(end_date))
-        ]
+        
+        # 沒有選日期，預設本月 + 前三個月
+        if not start_date or not end_date:
+            today = datetime.today()
+            first_day_this_month = today.replace(day=1)
+            start_date = (first_day_this_month - pd.DateOffset(months=3))
+            end_date = today
+        
+        filtered = df[(df['日期'] >= pd.Timestamp(start_date)) & (df['日期'] <= pd.Timestamp(end_date))]
+        
         if search_customer:
             filtered = filtered[filtered['客戶名稱'].str.contains(search_customer)]
+        
         if not filtered.empty:
-            st.dataframe(filtered, use_container_width=True, height=400)
+            st.dataframe(filtered.sort_values(by='日期', ascending=False), use_container_width=True, height=400)
         else:
             st.info("查無符合條件的資料")
     else:
         st.info("目前沒有任何資料")
 
-# =======================
-# 新增收帳資料
-# =======================
+# ===== 新增收帳資料 =====
 st.header("新增收帳資料")
 with st.form("add_form"):
     col1, col2, col3, col4 = st.columns(4)
