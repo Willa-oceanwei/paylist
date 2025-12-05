@@ -9,6 +9,8 @@ import streamlit as st
 from google.oauth2.service_account import Credentials
 import gspread
 
+st.write("Secret exists:", "GCP_SERVICE_ACCOUNT_JSON" in os.environ)
+
 # -------------------------------
 # Streamlit 頁面配置，必須最上面
 # -------------------------------
