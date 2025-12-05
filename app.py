@@ -24,6 +24,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
+st.write(SERVICE_ACCOUNT_INFO)
 creds = Credentials.from_service_account_info(
     SERVICE_ACCOUNT_INFO,
     scopes=SCOPES
