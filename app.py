@@ -40,10 +40,10 @@ type_map = {'現': '現金', '支': '支票', '支票+現金': '支票+現金'}
 df['型式'] = df['型式'].map(type_map).fillna(df['型式'])
 
 # ====== Streamlit UI ======
-st.title("收帳資料查詢與新增")
+st.title("💰 收帳資料查詢與新增")
 
 # 上方區塊：查詢
-with st.expander("🔍 查詢近四個月資料", expanded=True):
+with st.expander("🍭 查詢近四個月資料", expanded=True):
     col1, col2, col3 = st.columns([3,3,1])
     with col1:
         search_customer = st.text_input("輸入客戶名稱")
@@ -75,11 +75,16 @@ with st.expander("🔍 查詢近四個月資料", expanded=True):
 
         if not filtered.empty:
             filtered_display = filtered.copy()
+            # 日期只顯示 YYYY/MM/DD
             filtered_display['日期'] = filtered_display['日期'].dt.strftime("%Y/%m/%d")
-            # 靜態表格，清晰顯示
-            st.table(filtered_display.sort_values(by='日期', ascending=False))
+            # 依日期由新到舊排序
+            filtered_display = filtered_display.sort_values(by='日期', ascending=False)
+            
+            # 靜態表格，文字橫式排列
+            st.table(filtered_display)
         else:
             st.warning("❌ 沒有符合條件的資料")
+
 
 # 下方區塊：新增資料
 with st.expander("➕ 新增收帳資料", expanded=True):
