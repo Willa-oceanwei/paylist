@@ -49,7 +49,7 @@ with st.expander("🍭 查詢近四個月資料", expanded=True):
         search_customer = st.text_input("輸入客戶名稱")
     with col2:
         date_range = st.date_input(
-            "選擇日期區間 (可留空，自動抓本月+前三月)",
+            "留空顯示當月及前三月)",
             value=[]
         )
     with col3:
@@ -87,7 +87,7 @@ with st.expander("🍭 查詢近四個月資料", expanded=True):
 
 
 # 下方區塊：新增資料
-with st.expander("➕ 新增收帳資料", expanded=True):
+with st.expander("💯 新增收帳資料", expanded=True):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         new_date = st.date_input("日期")
