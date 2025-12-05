@@ -43,7 +43,7 @@ df['型式'] = df['型式'].map(type_map).fillna(df['型式'])
 st.title("💰收帳資料查詢與新增")
 
 # ====== 查詢區 ======
-with st.expander("🔍查詢近四個月資料", expanded=True):
+with st.expander("🔍 查詢近四個月資料", expanded=True):
     col1, col2, col3 = st.columns([3,3,1])
     with col1:
         search_customer = st.text_input("輸入客戶名稱")
@@ -86,7 +86,7 @@ with st.expander("🔍查詢近四個月資料", expanded=True):
 
 # ====== 新增資料區 ======
 # ====== 新增資料區 ======
-with st.expander("📥新增收帳資料", expanded=True):
+with st.expander("📥 新增收帳資料", expanded=True):
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         new_date = st.date_input("日期")
