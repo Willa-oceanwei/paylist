@@ -16,6 +16,8 @@ sheet = gc.open_by_url(SHEET_URL).sheet1
 # ====== 讀取資料 ======
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
+
+# 去除前後空格
 df['客戶名稱'] = df['客戶名稱'].astype(str).str.strip()
 df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
 
@@ -24,21 +26,28 @@ st.header("📊 收帳資料查詢")
 
 col1, col2 = st.columns(2)
 with col1:
-    search_customer = st.text_input("客戶名稱")
+    search_customer = st.text_input("客戶名稱", "").strip()
 with col2:
     start_date = st.date_input("開始日期", value=None)
     end_date = st.date_input("結束日期", value=None)
 
-# 篩選資料
+# 預設日期區間：本月 + 前三個月
 today = datetime.today()
-if not start_date or not end_date:
+if start_date is None or end_date is None:
     start_date = (today.replace(day=1) - relativedelta(months=3))
     end_date = today
 
-filtered = df[
-    (df['客戶名稱'].str.contains(search_customer, case=False, na=False)) &
-    (df['日期'] >= pd.to_datetime(start_date)) &
-    (df['日期'] <= pd.to_datetime(end_date))
+# 篩選資料
+filtered = df.copy()
+
+# 客戶名稱篩選
+if search_customer:
+    filtered = filtered[filtered['客戶名稱'].str.contains(search_customer, case=False, na=False)]
+
+# 日期篩選
+filtered = filtered[
+    (filtered['日期'] >= pd.to_datetime(start_date)) &
+    (filtered['日期'] <= pd.to_datetime(end_date))
 ]
 
 st.write("篩選結果:")
@@ -58,7 +67,7 @@ with st.form("add_payment_form"):
     with col2:
         new_customer = st.text_input("客戶名稱")
     with col3:
-        new_amount = st.number_input("金額", min_value=0.0, format="%.2f")
+        new_amount = st.text_input("金額")  # 開放文字輸入
     with col4:
         new_type = st.selectbox("型式", ["支票", "現金", "支票+現金"])
 
@@ -75,12 +84,12 @@ with st.form("add_payment_form"):
     if submitted:
         new_row = [
             new_date.strftime("%Y-%m-%d"),
-            new_customer,
-            new_amount,
+            new_customer.strip(),
+            new_amount.strip(),
             new_type,
-            new_person,
-            new_month,
-            new_note
+            new_person.strip(),
+            new_month.strip(),
+            new_note.strip()
         ]
         sheet.append_row(new_row)
         st.success("✅ 新增成功！")
