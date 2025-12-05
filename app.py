@@ -55,7 +55,6 @@ with st.expander("🔍 查詢近四個月資料", expanded=True):
     with col3:
         search_btn = st.button("搜尋")
 
-    # 判斷觸發搜尋
     if search_customer or date_range or search_btn:
         filtered = df.copy()
         if search_customer:
@@ -75,18 +74,12 @@ with st.expander("🔍 查詢近四個月資料", expanded=True):
         filtered = filtered[(filtered['日期'] >= start_date) & (filtered['日期'] <= end_date)]
 
         if not filtered.empty:
-            # 日期只顯示年/月/日
             filtered_display = filtered.copy()
             filtered_display['日期'] = filtered_display['日期'].dt.strftime("%Y/%m/%d")
-            
-            # 依日期由新到舊排序
-            filtered_display = filtered_display.sort_values(by='日期', ascending=False)
-            
-            # 使用 st.dataframe 顯示，指定高度，取消 style
-            st.dataframe(filtered_display, use_container_width=True, height=400)
+            # 靜態表格，清晰顯示
+            st.table(filtered_display.sort_values(by='日期', ascending=False))
         else:
             st.warning("❌ 沒有符合條件的資料")
-
 
 # 下方區塊：新增資料
 with st.expander("➕ 新增收帳資料", expanded=True):
