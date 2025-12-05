@@ -19,10 +19,10 @@ sheet = gc.open_by_url(SHEET_URL).sheet1
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
 
-# ====== 處理欄位 ======
+# 處理欄位
 df['客戶名稱'] = df['客戶名稱'].astype(str).str.strip()
 
-# 民國日期轉西元
+# 民國日期轉西元，只保留年月日
 def convert_roc_to_datetime(roc_date):
     try:
         roc_date = str(int(roc_date))
@@ -53,24 +53,28 @@ with st.expander("🔍 查詢近四個月資料", expanded=True):
             value=[]
         )
 
-    # 篩選資料
-    filtered = df.copy()
-    if search_customer:
-        filtered = filtered[filtered['客戶名稱'].str.contains(search_customer, case=False, na=False)]
+    # 只有在輸入客戶名稱或選日期後才顯示表格
+    if search_customer or date_range:
+        filtered = df.copy()
+        if search_customer:
+            filtered = filtered[filtered['客戶名稱'].str.contains(search_customer, case=False, na=False)]
 
-    if date_range:
-        start_date, end_date = date_range
-    else:
-        today = pd.Timestamp.today()
-        start_date = (today - pd.DateOffset(months=3)).replace(day=1)
-        end_date = today
+        if date_range:
+            start_date, end_date = date_range
+        else:
+            today = pd.Timestamp.today()
+            start_date = (today - pd.DateOffset(months=3)).replace(day=1)
+            end_date = today
 
-    filtered = filtered[(filtered['日期'] >= start_date) & (filtered['日期'] <= end_date)]
+        filtered = filtered[(filtered['日期'] >= start_date) & (filtered['日期'] <= end_date)]
 
-    if not filtered.empty:
-        st.dataframe(filtered, use_container_width=True)
-    else:
-        st.warning("❌ 沒有符合條件的資料")
+        if not filtered.empty:
+            # 交錯底色
+            def highlight_rows(x):
+                return ['background-color: #f9f9f9' if i%2==0 else 'background-color: #ffffff' for i in range(len(x))]
+            st.dataframe(filtered.style.apply(highlight_rows, axis=1), use_container_width=True)
+        else:
+            st.warning("❌ 沒有符合條件的資料")
 
 # 下方區塊：新增資料
 with st.expander("➕ 新增收帳資料", expanded=True):
@@ -78,7 +82,7 @@ with st.expander("➕ 新增收帳資料", expanded=True):
     with col1:
         new_date = st.date_input("日期")
     with col2:
-        new_customer = st.text_input("客戶名稱")
+        new_customer = st.text_input("客戶名稱", value="")  # 預設空白
     with col3:
         new_amount = st.number_input("金額", min_value=0)
     with col4:
@@ -93,7 +97,6 @@ with st.expander("➕ 新增收帳資料", expanded=True):
         new_note = st.text_input("備註", max_chars=200)
 
     if st.button("儲存新增資料"):
-        # 寫入 Google Sheet
         new_row = [
             f"{new_date.year-1911}{new_date.month:02d}{new_date.day:02d}", # 民國日期
             new_customer,
