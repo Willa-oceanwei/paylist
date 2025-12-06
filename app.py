@@ -96,8 +96,19 @@ elif keyword == "":
     st.session_state["do_search"] = False
 
 # 顯示搜尋結果
-if st.session_state["do_search"] and keyword:
+if st.session_state.get("do_search", False) and keyword:
     df_show = df.copy()
+
+    # 將原始日期轉成民國格式
+    df_show["日期"] = df_show["日期"].apply(to_minguo)
+
+    # 關鍵字搜尋
+    df_show = df_show[df_show["客戶名稱"].str.contains(keyword, case=False, na=False)]
+
+    if df_show.empty:
+        st.warning("❌ 沒有符合的資料")
+    else:
+        st.table(df_show)
 
     # 將原始日期轉成民國格式
     def to_minguo(x):
