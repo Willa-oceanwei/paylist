@@ -21,7 +21,7 @@ def to_minguo(date_str):
 # ==========================
 scope = ["https://www.googleapis.com/auth/spreadsheets"]
 creds = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"], scopes=scope
+    st.secrets["GCP_SERVICE_ACCOUNT_JSON"], scopes=scope
 )
 client = gspread.authorize(creds)
 sheet = client.open("paylist").worksheet("工作表1")
