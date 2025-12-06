@@ -65,6 +65,10 @@ st.divider()
 # ========= 搜尋區 =========
 
 st.subheader("🍭 收帳查詢")
+# ============================
+# 🔍 收帳查詢
+# ============================
+st.subheader("🍭 收帳查詢")
 
 # 初始化 session state
 if "do_search" not in st.session_state:
@@ -76,7 +80,7 @@ keyword = st.text_input("公司名稱（支援 Enter 搜尋）", key="keyword")
 # 搜尋按鈕
 search_now = st.button("搜尋")
 
-# 只要按搜尋鍵或輸入關鍵字，就設定搜尋狀態
+# 只要按搜尋鍵或直接輸入關鍵字，就設定搜尋狀態
 if search_now or keyword:
     st.session_state["do_search"] = True
 elif keyword == "":
@@ -86,7 +90,7 @@ elif keyword == "":
 if st.session_state["do_search"] and keyword:
     df_show = df.copy()
 
-    # 安全轉民國日期
+    # 將日期覆蓋成民國格式
     def to_minguo(x):
         try:
             d = pd.to_datetime(x)
@@ -94,7 +98,7 @@ if st.session_state["do_search"] and keyword:
         except:
             return ""
         
-    df_show["帳款日期"] = df_show["日期"].apply(to_minguo)
+    df_show["日期"] = df_show["日期"].apply(to_minguo)
 
     # 關鍵字搜尋
     df_show = df_show[df_show["客戶名稱"].str.contains(keyword, case=False, na=False)]
