@@ -74,15 +74,12 @@ st.divider()
 # ============================
 # 🔍 查詢區：需要按按鈕才會搜尋
 # ============================
-st.subheader("🍭 查詢區")
+st.subheader("🍭 公司名稱查詢")
 
 # 初始化 session state
 if "do_search" not in st.session_state:
     st.session_state["do_search"] = False
-
-# 公司名稱輸入
-keyword = st.text_input("公司名稱（支援 Enter 搜尋）", key="keyword")
-
+    
 # 搜尋按鈕
 search_now = st.button("搜尋")
 
