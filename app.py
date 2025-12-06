@@ -88,7 +88,7 @@ keyword = st.text_input("公司名稱（支援 Enter 搜尋）", key="keyword")
 # 搜尋按鈕
 search_now = st.button("搜尋")
 
-# 只要按搜尋鍵或直接輸入關鍵字，就設定搜尋狀態
+# 設定搜尋狀態
 if search_now or keyword:
     st.session_state["do_search"] = True
 elif keyword == "":
@@ -98,24 +98,30 @@ elif keyword == "":
 if st.session_state.get("do_search", False) and keyword:
     df_show = df.copy()
 
-    # 將原始日期轉成民國格式
-    def to_minguo(x):
+    # 轉 datetime
+    def parse_roc_to_datetime(x):
         try:
             x = str(x)
-            # 民國數字格式，例如 1130105
-            if len(x) == 7 and x.isdigit():
+            if len(x) == 7 and x.isdigit():  # 民國數字格式 1130105
                 year = int(x[:3]) + 1911
                 month = int(x[3:5])
                 day = int(x[5:7])
-                d = pd.Timestamp(year, month, day)
+                return pd.Timestamp(year, month, day)
             else:
-                # 嘗試解析一般西元日期字串
-                d = pd.to_datetime(x)
-            return f"{d.year - 1911}/{d.month:02d}/{d.day:02d}"
+                return pd.to_datetime(x)
+        except:
+            return pd.NaT
+
+    df_show["日期"] = df_show["日期"].apply(parse_roc_to_datetime)
+
+    # 轉民國顯示
+    def to_minguo_display(dt):
+        try:
+            return f"{dt.year - 1911}/{dt.month:02d}/{dt.day:02d}"
         except:
             return ""
 
-    df_show["日期"] = df_show["日期"].apply(to_minguo)
+    df_show["日期"] = df_show["日期"].apply(to_minguo_display)
 
     # 關鍵字搜尋
     df_show = df_show[df_show["客戶名稱"].str.contains(keyword, case=False, na=False)]
