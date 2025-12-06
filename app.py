@@ -9,16 +9,31 @@ st.set_page_config(page_title="收帳查詢", layout="wide")
 # ============================
 # 工具：西元轉民國 yyyy/mm/dd
 # ============================
-def to_minguo_display(dt):
+def to_minguo(x):
     try:
-        d = pd.to_datetime(dt)
+        x = str(x).strip()
+        # 如果是民國數字格式，例如 1130105
+        if len(x) == 7 and x.isdigit():
+            year = int(x[:3]) + 1911
+            month = int(x[3:5])
+            day = int(x[5:7])
+            d = pd.Timestamp(year, month, day)
+        # 如果已經是民國斜線格式，例如 "113/01/05"
+        elif "/" in x:
+            parts = x.split("/")
+            if len(parts) == 3:
+                year = int(parts[0]) + 1911
+                month = int(parts[1])
+                day = int(parts[2])
+                d = pd.Timestamp(year, month, day)
+            else:
+                d = pd.to_datetime(x)
+        else:
+            # 嘗試解析一般西元日期
+            d = pd.to_datetime(x)
         return f"{d.year - 1911}/{d.month:02d}/{d.day:02d}"
     except:
         return ""
-
-def to_minguo_month(dt):
-    d = pd.to_datetime(dt)
-    return f"{d.year - 1911}/{d.month:02d}"
 
 # ============================
 # Google Sheet 連線
