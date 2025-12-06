@@ -124,6 +124,9 @@ if st.session_state.get("do_search", False) and keyword:
     # 關鍵字搜尋
     df_show = df_show[df_show["客戶名稱"].str.contains(keyword, case=False, na=False)]
 
+    # 由近到遠排序
+    df_show = df_show.sort_values(by="日期", ascending=False)
+
     if df_show.empty:
         st.warning("❌ 沒有符合的資料")
     else:
