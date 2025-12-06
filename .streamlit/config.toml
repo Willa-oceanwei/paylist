@@ -1,2 +1,8 @@
 [theme]
-base = "dark"
+base="dark"                       # 深色主題
+primaryColor="#1abc9c"            # 主色調
+backgroundColor="#0E1117"         # 背景深色
+secondaryBackgroundColor="#262730" # 次背景色（卡片或側邊欄）
+textColor="#FAFAFA"               # 文字顏色
+font="sans serif"                  # 字型
+
