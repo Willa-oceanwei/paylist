@@ -66,11 +66,6 @@ st.divider()
 
 st.subheader("🍭 收帳查詢")
 
-# ============================
-# 🔍 查詢區
-# ============================
-st.subheader("🍭 收帳查詢")
-
 # 初始化 session state
 if "do_search" not in st.session_state:
     st.session_state["do_search"] = False
@@ -108,16 +103,6 @@ if st.session_state["do_search"] and keyword:
         st.warning("❌ 沒有符合的資料")
     else:
         st.table(df_show)
-
-# ============================
-# 📋 搜尋結果
-# ============================
-if show_result and keyword:
-    filtered = df[df["客戶名稱"].str.contains(keyword, case=False, na=False)]
-    st.subheader("📋 查詢結果")
-    st.table(filtered)
-elif show_result:
-    st.info("請輸入關鍵字再搜尋")
 
 st.divider()
 
