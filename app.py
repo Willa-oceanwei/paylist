@@ -80,6 +80,9 @@ st.subheader("🍭 公司名稱查詢")
 if "do_search" not in st.session_state:
     st.session_state["do_search"] = False
     
+# 公司名稱輸入
+keyword = st.text_input("公司名稱（支援 Enter 搜尋）", key="keyword")
+    
 # 搜尋按鈕
 search_now = st.button("搜尋")
 
