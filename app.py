@@ -65,8 +65,6 @@ def convert_roc_to_date(x):
     except:
         return x
 
-df["日期"] = df["日期"].apply(to_minguo)
-
 # ============================
 # 標題
 # ============================
