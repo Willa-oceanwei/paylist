@@ -62,23 +62,41 @@ st.divider()
 # ============================
 # 🔍 查詢區：需要按按鈕才會搜尋
 # ============================
-st.subheader("查詢資料")
+# ========= 搜尋區 =========
 
-col_s1, col_s2 = st.columns([3,1])
+st.subheader("🍭 收帳查詢")
 
-with col_s1:
-    keyword = st.text_input("輸入公司名稱關鍵字", "")
+# 1) 公司名稱
+keyword = st.text_input("公司名稱（支援 Enter 搜尋）", key="keyword")
 
-with col_s2:
-    search_button = st.button("搜尋 🔍")
+# 2) 搜尋按鈕
+search_now = st.button("搜尋")
 
-# 預設不顯示結果
-show_result = False
+# 3) 控制是否顯示結果
+if search_now:
+    st.session_state["do_search"] = True
+elif keyword == "":
+    st.session_state["do_search"] = False
 
-# 按按鈕才查詢
-if search_button:
-    show_result = True
+# 4) 只有在「按搜尋鍵」或「Enter 造成 keyword 更新後」才搜尋
+if st.session_state.get("do_search", False):
 
+    df_show = df.copy()
+
+    # 安全轉民國日期
+    def to_minguo(x):
+        try:
+            d = pd.to_datetime(x)
+            return f"{d.year - 1911:03d}/{d.month:02d}/{d.day:02d}"
+        except:
+            return ""
+        
+    df_show["帳款日期"] = df_show["帳款日期"].apply(to_minguo)
+
+    # 關鍵字搜尋
+    df_show = df_show[df_show["公司名稱"].str.contains(keyword, na=False)]
+
+    st.table(df_show)
 # ============================
 # 📋 搜尋結果
 # ============================
@@ -92,7 +110,7 @@ elif show_result:
 st.divider()
 
 # ============================
-# ➕ 新增收帳資料
+# 🍯 新增收帳資料
 # ============================
 st.subheader("新增收帳資料")
 
