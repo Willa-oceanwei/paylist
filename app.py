@@ -2,112 +2,121 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import datetime
 
-# ===== 民國日期函式 =====
-def to_roc_date(dt):
-    return f"{dt.year-1911:03d}/{dt.month:02d}/{dt.day:02d}"
+st.set_page_config(page_title="收帳查詢", layout="wide")
 
-def to_roc_month(dt):
-    return f"{dt.year-1911:03d}/{dt.month:02d}"
+# ==========================
+# 🎯 民國日期轉換函式
+# ==========================
+def to_minguo(date_str):
+    try:
+        d = pd.to_datetime(date_str)
+        return f"{d.year - 1911}/{d.month:02d}/{d.day:02d}"
+    except:
+        return date_str
 
-# ===== 四個月帳款月份（民國） =====
-def get_recent_4_months_roc():
-    today = pd.Timestamp.today()
-    months = []
+# ==========================
+# 🎯 連線 Google Sheet
+# ==========================
+scope = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"], scopes=scope
+)
+client = gspread.authorize(creds)
+sheet = client.open("paylist").worksheet("工作表1")
+
+# 讀取資料
+df = pd.DataFrame(sheet.get_all_records())
+
+# 日期欄位轉民國
+if "日期" in df.columns:
+    df["日期"] = df["日期"].apply(to_minguo)
+
+# ==========================
+# 🔰 標題
+# ==========================
+st.title("💰 收帳查詢")
+
+st.divider()
+
+# ==========================
+# 🔍 查詢區域
+# ==========================
+st.subheader("查詢區域（公司名稱）")
+
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    keyword = st.text_input("公司名稱關鍵字", "")
+
+# ==========================
+# 🎯 帳款月份（近四月）下拉選單（民國）
+# ==========================
+def get_recent_4_months():
+    today = datetime.today()
+    result = []
     for i in range(4):
-        m = today - pd.DateOffset(months=i)
-        months.append(to_roc_month(m))
-    return months
+        d = today - pd.DateOffset(months=i)
+        minguo_year = d.year - 1911
+        result.append(f"{minguo_year}/{d.month:02d}")
+    return result
 
+months_list = get_recent_4_months()
+selected_month = st.selectbox("帳款月份", months_list)
 
-# ======================
-# 🔍 查詢區（只有客戶名稱）
-# ======================
-with st.expander("🔍 查詢近四個月資料", expanded=True):
+st.divider()
 
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        search_customer = st.text_input("輸入客戶名稱")
-    with col2:
-        search_btn = st.button("搜尋")
+# ==========================
+# 🔍 搜尋結果
+# ==========================
 
-    # 觸發搜尋：輸入文字或按下搜尋
-    if search_customer or search_btn:
-        filtered = df.copy()
+filtered = df.copy()
 
-        # 客戶名稱模糊查詢
-        filtered = filtered[
-            filtered['客戶名稱'].str.contains(search_customer, case=False, na=False)
-        ]
+if keyword:
+    filtered = filtered[filtered["公司名稱"].str.contains(keyword, case=False, na=False)]
 
-        # 自動抓近四個月
-        today = pd.Timestamp.today()
-        start_date = (today - pd.DateOffset(months=3)).replace(day=1)
-        end_date = today
+# 筆數不多 → 用 st.table(), 不要交錯底色
+st.subheader("📋 查詢結果")
+st.table(filtered)
 
-        filtered = filtered[
-            (filtered['日期'] >= start_date) &
-            (filtered['日期'] <= end_date)
-        ]
+st.divider()
 
-        if not filtered.empty:
-            show_df = filtered.copy()
+# ==========================
+# ➕ 新增資料區
+# ==========================
+st.subheader("新增收帳資料")
 
-            # 統一轉民國日期
-            show_df['日期'] = show_df['日期'].apply(to_roc_date)
+colA, colB, colC, colD = st.columns(4)
 
-            # 依日期新到舊
-            show_df = show_df.sort_values(by='日期', ascending=False)
+with colA:
+    new_date = st.date_input("日期（自動民國）")
 
-            st.table(show_df)
-        else:
-            st.warning("❌ 沒有符合條件的資料")
+with colB:
+    new_company = st.text_input("公司名稱")
 
+with colC:
+    new_amount = st.number_input("金額", min_value=0)
 
-# ======================
-# ➕ 新增收帳資料
-# ======================
-with st.expander("➕ 新增收帳資料", expanded=True):
+with colD:
+    new_responsible = st.selectbox("負責人", ["", "德", "Q", "其他"])
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        new_date = st.date_input("日期")
+# 帳款月份（民國格式）
+new_month = f"{new_date.year - 1911}/{new_date.month:02d}"
 
-    with col2:
-        new_customer = st.text_input("客戶名稱", value="")
+if st.button("新增資料"):
 
-    with col3:
-        new_amount = st.number_input("金額", min_value=0)
+    new_row = [
+        f"{new_date.year - 1911}/{new_date.month:02d}/{new_date.day:02d}",
+        new_company,
+        int(new_amount),
+        new_responsible,
+        new_month,
+    ]
 
-    with col4:
-        new_type = st.selectbox("型式", ["", "支票", "現金", "支票+現金"])
-
-    col5, col6, col7 = st.columns(3)
-    with col5:
-        new_person = st.selectbox("負責人員", ["", "德", "Q", "其他"])
-
-    with col6:
-        # 🔥 帳款月份下拉修正完成
-        recent_months = get_recent_4_months_roc()
-        new_month = st.selectbox("帳款月份", [""] + recent_months)
-
-    with col7:
-        new_note = st.text_input("備註", max_chars=200)
-
-    if st.button("儲存新增資料"):
-
-        # 民國日期寫入 Sheet 時仍維持無斜線（如 1150105）
-        roc_compact = f"{new_date.year-1911:03d}{new_date.month:02d}{new_date.day:02d}"
-
-        new_row = [
-            roc_compact,      # 民國日期（寫入）
-            new_customer,
-            new_amount,
-            new_type,
-            new_person,
-            new_month,        # 民國月份（115/01）
-            new_note
-        ]
-
-        sheet.append_row(new_row)
-        st.success("✅ 已新增資料！")
+    # ⚠️ 必須與 Google Sheet 表頭欄位一致
+    try:
+        sheet.append_row([str(x) for x in new_row])
+        st.success("新增成功！")
+    except Exception as e:
+        st.error(f"新增失敗：{e}")
