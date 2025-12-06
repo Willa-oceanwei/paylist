@@ -3,120 +3,124 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+from datetime import date
+import pandas as pd
 
 st.set_page_config(page_title="收帳查詢", layout="wide")
 
 # ==========================
-# 🎯 民國日期轉換函式
+# 🎯 民國日期轉換
 # ==========================
-def to_minguo(date_str):
+def to_minguo_display(dt):
+    """西元 → 民國 yyyy/mm/dd"""
     try:
-        d = pd.to_datetime(date_str)
+        d = pd.to_datetime(dt)
         return f"{d.year - 1911}/{d.month:02d}/{d.day:02d}"
     except:
-        return date_str
+        return dt
+
+def to_minguo_month(dt):
+    d = pd.to_datetime(dt)
+    return f"{d.year - 1911}/{d.month:02d}"
 
 # ==========================
-# 🎯 連線 Google Sheet
+# 🎯 Google Sheet 連線
 # ==========================
-scope = ["https://www.googleapis.com/auth/spreadsheets"]
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+
 creds = Credentials.from_service_account_info(
-    st.secrets["GCP_SERVICE_ACCOUNT_JSON"], scopes=scope
+    st.secrets["GCP_SERVICE_ACCOUNT_JSON"],  # ← 使用你的 key
+    scopes=SCOPES
 )
+
 client = gspread.authorize(creds)
-sheet = client.open("paylist").worksheet("工作表1")
+
+sheet = client.open_by_url(
+    "https://docs.google.com/spreadsheets/d/17Tm4ua_vF6E5fi49eNDgHMI25us1Q-u6TqMXmLaGugs"
+).sheet1
 
 # 讀取資料
 df = pd.DataFrame(sheet.get_all_records())
 
-# 日期欄位轉民國
+# 日期轉民國格式
 if "日期" in df.columns:
-    df["日期"] = df["日期"].apply(to_minguo)
+    df["日期"] = df["日期"].apply(to_minguo_display)
 
 # ==========================
-# 🔰 標題
+# 🏷️ 標題
 # ==========================
 st.title("💰 收帳查詢")
-
 st.divider()
 
 # ==========================
-# 🔍 查詢區域
+# 🔍 查詢區（只查公司）
 # ==========================
-st.subheader("查詢區域（公司名稱）")
+st.subheader("查詢資料")
+keyword = st.text_input("輸入公司名稱關鍵字", "")
 
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    keyword = st.text_input("公司名稱關鍵字", "")
-
-# ==========================
-# 🎯 帳款月份（近四月）下拉選單（民國）
-# ==========================
-def get_recent_4_months():
-    today = datetime.today()
-    result = []
-    for i in range(4):
-        d = today - pd.DateOffset(months=i)
-        minguo_year = d.year - 1911
-        result.append(f"{minguo_year}/{d.month:02d}")
-    return result
-
-months_list = get_recent_4_months()
-selected_month = st.selectbox("帳款月份", months_list)
-
-st.divider()
-
-# ==========================
-# 🔍 搜尋結果
-# ==========================
-
+# 查詢結果
 filtered = df.copy()
-
 if keyword:
-    filtered = filtered[filtered["公司名稱"].str.contains(keyword, case=False, na=False)]
+    filtered = filtered[filtered["客戶名稱"].str.contains(keyword, case=False, na=False)]
 
-# 筆數不多 → 用 st.table(), 不要交錯底色
 st.subheader("📋 查詢結果")
 st.table(filtered)
 
 st.divider()
 
 # ==========================
-# ➕ 新增資料區
+# ➕ 新增資料
 # ==========================
 st.subheader("新增收帳資料")
 
-colA, colB, colC, colD = st.columns(4)
+col1, col2, col3, col4 = st.columns(4)
 
-with colA:
-    new_date = st.date_input("日期（自動民國）")
+with col1:
+    new_date = st.date_input("日期")
 
-with colB:
-    new_company = st.text_input("公司名稱")
+with col2:
+    new_customer = st.text_input("客戶名稱")
 
-with colC:
+with col3:
     new_amount = st.number_input("金額", min_value=0)
 
-with colD:
-    new_responsible = st.selectbox("負責人", ["", "德", "Q", "其他"])
+with col4:
+    new_type = st.selectbox("型式", ["", "支票", "現金", "支票+現金"])
 
-# 帳款月份（民國格式）
-new_month = f"{new_date.year - 1911}/{new_date.month:02d}"
+col5, col6 = st.columns(2)
 
+with col5:
+    new_person = st.selectbox("負責人", ["", "德", "Q", "其他"])
+
+# ==========================
+# 🗓️ 下拉月份（民國）
+# ==========================
+today = date.today()
+months = []
+for i in range(4):
+    d = datetime(today.year, today.month, 1) - pd.DateOffset(months=i)
+    months.append(f"{d.year - 1911}/{d.month:02d}")
+
+with col6:
+    new_acct_month = st.selectbox("帳款月份 (民國)", months)
+
+# ==========================
+# 💾 儲存
+# ==========================
 if st.button("新增資料"):
 
-    new_row = [
-        f"{new_date.year - 1911}/{new_date.month:02d}/{new_date.day:02d}",
-        new_company,
+    row = [
+        to_minguo_display(new_date),
+        new_customer,
         int(new_amount),
-        new_responsible,
-        new_month,
+        new_type,
+        new_person,
+        new_acct_month,
+        ""
     ]
 
-    # ⚠️ 必須與 Google Sheet 表頭欄位一致
     try:
-        sheet.append_row([str(x) for x in new_row])
+        sheet.append_row(row)
         st.success("新增成功！")
     except Exception as e:
         st.error(f"新增失敗：{e}")
