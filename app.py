@@ -69,7 +69,7 @@ if "do_search" not in st.session_state:
     st.session_state["do_search"] = False
 
 # 公司名稱輸入
-keyword = st.text_input("公司名稱", key="keyword")
+keyword = st.text_input("公司名稱（支援 Enter 搜尋）", key="keyword")
 
 # 搜尋按鈕
 search_now = st.button("搜尋")
@@ -84,10 +84,19 @@ elif keyword == "":
 if st.session_state["do_search"] and keyword:
     df_show = df.copy()
 
-    # 將日期覆蓋成民國格式
+    # 將原始日期轉成民國格式
     def to_minguo(x):
         try:
-            d = pd.to_datetime(x)
+            x = str(x)
+            # 民國數字格式，例如 1130105
+            if len(x) == 7 and x.isdigit():
+                year = int(x[:3]) + 1911
+                month = int(x[3:5])
+                day = int(x[5:7])
+                d = pd.Timestamp(year, month, day)
+            else:
+                # 嘗試解析一般西元日期字串
+                d = pd.to_datetime(x)
             return f"{d.year - 1911}/{d.month:02d}/{d.day:02d}"
         except:
             return ""
