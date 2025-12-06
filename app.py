@@ -66,37 +66,49 @@ st.divider()
 
 st.subheader("🍭 收帳查詢")
 
-# 1) 公司名稱
+# ============================
+# 🔍 查詢區
+# ============================
+st.subheader("🍭 收帳查詢")
+
+# 初始化 session state
+if "do_search" not in st.session_state:
+    st.session_state["do_search"] = False
+
+# 公司名稱輸入
 keyword = st.text_input("公司名稱（支援 Enter 搜尋）", key="keyword")
 
-# 2) 搜尋按鈕
+# 搜尋按鈕
 search_now = st.button("搜尋")
 
-# 3) 控制是否顯示結果
-if search_now:
+# 只要按搜尋鍵或輸入關鍵字，就設定搜尋狀態
+if search_now or keyword:
     st.session_state["do_search"] = True
 elif keyword == "":
     st.session_state["do_search"] = False
 
-# 4) 只有在「按搜尋鍵」或「Enter 造成 keyword 更新後」才搜尋
-if st.session_state.get("do_search", False):
-
+# 顯示搜尋結果
+if st.session_state["do_search"] and keyword:
     df_show = df.copy()
 
     # 安全轉民國日期
     def to_minguo(x):
         try:
             d = pd.to_datetime(x)
-            return f"{d.year - 1911:03d}/{d.month:02d}/{d.day:02d}"
+            return f"{d.year - 1911}/{d.month:02d}/{d.day:02d}"
         except:
             return ""
         
-    df_show["帳款日期"] = df_show["帳款日期"].apply(to_minguo)
+    df_show["帳款日期"] = df_show["日期"].apply(to_minguo)
 
     # 關鍵字搜尋
-    df_show = df_show[df_show["公司名稱"].str.contains(keyword, na=False)]
+    df_show = df_show[df_show["客戶名稱"].str.contains(keyword, case=False, na=False)]
 
-    st.table(df_show)
+    if df_show.empty:
+        st.warning("❌ 沒有符合的資料")
+    else:
+        st.table(df_show)
+
 # ============================
 # 📋 搜尋結果
 # ============================
