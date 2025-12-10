@@ -3,6 +3,8 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, date
+import os
+os.environ["STREAMLIT_WATCH_RELOAD"] = "false"
 
 st.set_page_config(page_title="收帳查詢", layout="wide")
 
