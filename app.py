@@ -74,35 +74,38 @@ st.title("💰 收帳查詢")
 st.divider()
 
 # ============================
-# 🔍 查詢區：需要按按鈕才會搜尋
+# 🔍 查詢區：僅顯示近四個月資料
 # ============================
 st.subheader("🍭 查詢區")
 
 # 初始化 session state
 if "do_search" not in st.session_state:
     st.session_state["do_search"] = False
-    
+
 # 公司名稱輸入
 keyword = st.text_input("公司名稱（支援 Enter 搜尋）", key="keyword")
-    
+
 # 搜尋按鈕
 search_now = st.button("搜尋")
 
-# 設定搜尋狀態
+# 控制搜尋狀態
 if search_now or keyword:
     st.session_state["do_search"] = True
 elif keyword == "":
     st.session_state["do_search"] = False
 
-# 顯示搜尋結果
+# ============================
+# 執行搜尋
+# ============================
 if st.session_state.get("do_search", False) and keyword:
+
     df_show = df.copy()
 
-    # 轉 datetime
+    # -------- 1️⃣ 將民國日期轉為 datetime --------
     def parse_roc_to_datetime(x):
         try:
-            x = str(x)
-            if len(x) == 7 and x.isdigit():  # 民國數字格式 1130105
+            x = str(x).strip()
+            if len(x) == 7 and x.isdigit():  # 1130105
                 year = int(x[:3]) + 1911
                 month = int(x[3:5])
                 day = int(x[5:7])
@@ -112,29 +115,40 @@ if st.session_state.get("do_search", False) and keyword:
         except:
             return pd.NaT
 
-    df_show["日期"] = df_show["日期"].apply(parse_roc_to_datetime)
+    df_show["日期_dt"] = df_show["日期"].apply(parse_roc_to_datetime)
 
-    # 轉民國顯示
+    # 移除無效日期
+    df_show = df_show[df_show["日期_dt"].notna()]
+
+    # -------- 2️⃣ 限制近四個月 --------
+    today = pd.Timestamp.today().normalize()
+    four_months_ago = today - pd.DateOffset(months=4)
+
+    df_show = df_show[df_show["日期_dt"] >= four_months_ago]
+
+    # -------- 3️⃣ 公司名稱關鍵字搜尋 --------
+    df_show = df_show[
+        df_show["客戶名稱"].str.contains(keyword, case=False, na=False)
+    ]
+
+    # -------- 4️⃣ 由近到遠排序（真正日期排序）--------
+    df_show = df_show.sort_values(by="日期_dt", ascending=False)
+
+    # -------- 5️⃣ 轉為民國顯示格式 --------
     def to_minguo_display(dt):
-        try:
-            return f"{dt.year - 1911}/{dt.month:02d}/{dt.day:02d}"
-        except:
-            return ""
+        return f"{dt.year - 1911}/{dt.month:02d}/{dt.day:02d}"
 
-    df_show["日期"] = df_show["日期"].apply(to_minguo_display)
+    df_show["日期"] = df_show["日期_dt"].apply(to_minguo_display)
 
-    # 關鍵字搜尋
-    df_show = df_show[df_show["客戶名稱"].str.contains(keyword, case=False, na=False)]
+    # 移除內部用欄位
+    df_show = df_show.drop(columns=["日期_dt"])
 
-    # 由近到遠排序
-    df_show = df_show.sort_values(by="日期", ascending=False)
-
+    # -------- 6️⃣ 顯示 --------
     if df_show.empty:
-        st.warning("❌ 沒有符合的資料")
+        st.warning("❌ 近四個月內沒有符合的資料")
     else:
+        st.success(f"找到 {len(df_show)} 筆資料（近四個月內）")
         st.table(df_show)
-
-st.divider()
 
 # ============================
 #  新增收帳資料
