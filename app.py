@@ -2,158 +2,127 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime, date
+from datetime import date
 import os
+
 os.environ["STREAMLIT_WATCH_RELOAD"] = "false"
 
 st.set_page_config(page_title="收帳查詢", layout="wide")
 
-# ============================
-# 工具：西元轉民國 yyyy/mm/dd
-# ============================
-def to_minguo(x):
-    try:
-        x = str(x).strip()
-        # 如果是民國數字格式，例如 1130105
-        if len(x) == 7 and x.isdigit():
-            year = int(x[:3]) + 1911
-            month = int(x[3:5])
-            day = int(x[5:7])
-            d = pd.Timestamp(year, month, day)
-        # 如果已經是民國斜線格式，例如 "113/01/05"
-        elif "/" in x:
-            parts = x.split("/")
-            if len(parts) == 3:
-                year = int(parts[0]) + 1911
-                month = int(parts[1])
-                day = int(parts[2])
-                d = pd.Timestamp(year, month, day)
-            else:
-                d = pd.to_datetime(x)
-        else:
-            # 嘗試解析一般西元日期
-            d = pd.to_datetime(x)
-        return f"{d.year - 1911}/{d.month:02d}/{d.day:02d}"
-    except:
-        return ""
-
-# ============================
+# =========================
 # Google Sheet 連線
-# ============================
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+# =========================
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
 creds = Credentials.from_service_account_info(
     st.secrets["GCP_SERVICE_ACCOUNT_JSON"],
     scopes=SCOPES
 )
+
 client = gspread.authorize(creds)
 
 sheet = client.open_by_url(
     "https://docs.google.com/spreadsheets/d/17Tm4ua_vF6E5fi49eNDgHMI25us1Q-u6TqMXmLaGugs"
 ).sheet1
 
-df = pd.DataFrame(sheet.get_all_records())
 
-# 修正日期 — 原本是民國數字「1130105」等
-def convert_roc_to_date(x):
+# =========================
+# 讀取資料（快取）
+# =========================
+@st.cache_data(ttl=60)
+def load_data():
+    data = sheet.get_all_records()
+    return pd.DataFrame(data)
+
+df = load_data()
+
+
+# =========================
+# 民國日期 → datetime
+# =========================
+def parse_roc(x):
     try:
         x = str(x)
-        if len(x) == 7:  # 1130105
+        if len(x) == 7 and x.isdigit():
             y = int(x[:3]) + 1911
             m = int(x[3:5])
             d = int(x[5:7])
-            return f"{y}-{m:02d}-{d:02d}"
-        else:
-            return x
+            return pd.Timestamp(y, m, d)
+        return pd.to_datetime(x)
     except:
-        return x
+        return pd.NaT
 
-# ============================
+
+# =========================
+# datetime → 民國
+# =========================
+def to_minguo(dt):
+    return f"{dt.year - 1911}/{dt.month:02d}/{dt.day:02d}"
+
+
+# =========================
 # 標題
-# ============================
-st.title("💰 收帳查詢")
+# =========================
+st.title("💰 收帳查詢系統")
 st.divider()
 
-# ============================
-# 🔍 查詢區：僅顯示近四個月資料
-# ============================
-st.subheader("🍭 查詢區")
 
-# 初始化 session state
-if "do_search" not in st.session_state:
-    st.session_state["do_search"] = False
+# =========================
+# 🔍 查詢區
+# =========================
+st.subheader("🔍 收帳查詢")
 
-# 公司名稱輸入
-keyword = st.text_input("公司名稱（支援 Enter 搜尋）", key="keyword")
+keyword = st.text_input("公司名稱 (Enter 搜尋)", key="search_keyword")
 
-# 搜尋按鈕
-search_now = st.button("搜尋")
-
-# 控制搜尋狀態
-if search_now or keyword:
-    st.session_state["do_search"] = True
-elif keyword == "":
-    st.session_state["do_search"] = False
-
-# ============================
-# 執行搜尋
-# ============================
-if st.session_state.get("do_search", False) and keyword:
+if keyword:
 
     df_show = df.copy()
 
-    # -------- 1️⃣ 將民國日期轉為 datetime --------
-    def parse_roc_to_datetime(x):
-        try:
-            x = str(x).strip()
-            if len(x) == 7 and x.isdigit():  # 1130105
-                year = int(x[:3]) + 1911
-                month = int(x[3:5])
-                day = int(x[5:7])
-                return pd.Timestamp(year, month, day)
-            else:
-                return pd.to_datetime(x)
-        except:
-            return pd.NaT
+    df_show["日期_dt"] = df_show["日期"].apply(parse_roc)
 
-    df_show["日期_dt"] = df_show["日期"].apply(parse_roc_to_datetime)
-
-    # 移除無效日期
     df_show = df_show[df_show["日期_dt"].notna()]
 
-    # -------- 2️⃣ 限制近四個月 --------
+    # 限制近四個月
     today = pd.Timestamp.today().normalize()
     four_months_ago = today - pd.DateOffset(months=4)
 
     df_show = df_show[df_show["日期_dt"] >= four_months_ago]
 
-    # -------- 3️⃣ 公司名稱關鍵字搜尋 --------
+    # 公司名稱搜尋
     df_show = df_show[
         df_show["客戶名稱"].str.contains(keyword, case=False, na=False)
     ]
 
-    # -------- 4️⃣ 由近到遠排序（真正日期排序）--------
+    # 排序
     df_show = df_show.sort_values(by="日期_dt", ascending=False)
 
-    # -------- 5️⃣ 轉為民國顯示格式 --------
-    def to_minguo_display(dt):
-        return f"{dt.year - 1911}/{dt.month:02d}/{dt.day:02d}"
+    # 顯示民國
+    df_show["日期"] = df_show["日期_dt"].apply(to_minguo)
 
-    df_show["日期"] = df_show["日期_dt"].apply(to_minguo_display)
-
-    # 移除內部用欄位
     df_show = df_show.drop(columns=["日期_dt"])
 
-    # -------- 6️⃣ 顯示 --------
     if df_show.empty:
-        st.warning("❌ 近四個月內沒有符合的資料")
-    else:
-        st.success(f"找到 {len(df_show)} 筆資料（近四個月內）")
-        st.table(df_show)
 
-# ============================
-#  新增收帳資料
-# ============================
-st.subheader("🍯 新增區")
+        st.warning("❌ 近四個月沒有資料")
+
+    else:
+
+        st.success(f"找到 {len(df_show)} 筆資料")
+
+        st.dataframe(
+            df_show,
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+# =========================
+# 🍯 新增區
+# =========================
+st.subheader("🍯 新增收帳資料")
 
 with st.form("add_form"):
 
@@ -176,23 +145,44 @@ with st.form("add_form"):
     with col5:
         new_person = st.selectbox("負責人", ["", "德", "Q", "其他"])
 
+    # 帳款月份
     today = date.today()
+
     months = []
+
     for i in range(4):
         d = pd.to_datetime(f"{today.year}-{today.month}-01") - pd.DateOffset(months=i)
         months.append(f"{d.year - 1911}/{d.month:02d}")
 
     with col6:
-        new_acct_month = st.selectbox("帳款月份 (民國)", months)
+        new_acct_month = st.selectbox("帳款月份", months)
 
-    new_note = st.text_area("備註（可留空）", "", max_chars=300, height=80)
+    new_note = st.text_area("備註", "", height=80)
 
     submit = st.form_submit_button("新增資料")
 
+
+# =========================
+# 寫入資料
+# =========================
 if submit:
 
+    if not new_customer:
+        st.warning("請輸入客戶名稱")
+        st.stop()
+
+    if not new_type:
+        st.warning("請選擇型式")
+        st.stop()
+
+    if not new_person:
+        st.warning("請選擇負責人")
+        st.stop()
+
+    roc_date = f"{new_date.year - 1911}{new_date.month:02d}{new_date.day:02d}"
+
     new_row = [
-        f"{new_date.year - 1911}{new_date.month:02d}{new_date.day:02d}",
+        roc_date,
         new_customer,
         int(new_amount),
         new_type,
@@ -202,8 +192,18 @@ if submit:
     ]
 
     try:
-        sheet.append_row(new_row)
-        st.success("新增成功！")
+
+        sheet.append_row(
+            new_row,
+            value_input_option="USER_ENTERED"
+        )
+
+        st.success("✅ 新增成功")
+
+        st.cache_data.clear()
+
         st.rerun()
+
     except Exception as e:
+
         st.error(f"新增失敗：{e}")
