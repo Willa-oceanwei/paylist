@@ -67,7 +67,7 @@ def to_minguo(dt):
 # 標題
 # =========================
 st.markdown(
-    "<h3 style='margin-top:0px'>💰 收帳查詢系統</h3>",
+    "<h2 style='margin-top:0px'>💰 收帳查詢系統</h3>",
     unsafe_allow_html=True
 )
 st.divider()
