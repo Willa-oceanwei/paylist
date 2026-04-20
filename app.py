@@ -155,42 +155,42 @@ if st.session_state.get("do_search", False) and keyword:
 # ============================
 st.subheader("🍯 新增區")
 
-col1, col2, col3, col4 = st.columns(4)
+with st.form("add_form"):
 
-with col1:
-    new_date = st.date_input("日期")
+    col1, col2, col3, col4 = st.columns(4)
 
-with col2:
-    new_customer = st.text_input("客戶名稱")
+    with col1:
+        new_date = st.date_input("日期")
 
-with col3:
-    new_amount = st.number_input("金額", min_value=0)
+    with col2:
+        new_customer = st.text_input("客戶名稱")
 
-with col4:
-    new_type = st.selectbox("型式", ["", "支票", "現金", "支票+現金"])
+    with col3:
+        new_amount = st.number_input("金額", min_value=0)
 
-col5, col6 = st.columns(2)
+    with col4:
+        new_type = st.selectbox("型式", ["", "支票", "現金", "支票+現金"])
 
-with col5:
-    new_person = st.selectbox("負責人", ["", "德", "Q", "其他"])
+    col5, col6 = st.columns(2)
 
-# 下拉月份（動態民國年月）
-today = date.today()
-months = []
-for i in range(4):
-    d = pd.to_datetime(f"{today.year}-{today.month}-01") - pd.DateOffset(months=i)
-    months.append(f"{d.year - 1911}/{d.month:02d}")
+    with col5:
+        new_person = st.selectbox("負責人", ["", "德", "Q", "其他"])
 
-with col6:
-    new_acct_month = st.selectbox("帳款月份 (民國)", months)
+    today = date.today()
+    months = []
+    for i in range(4):
+        d = pd.to_datetime(f"{today.year}-{today.month}-01") - pd.DateOffset(months=i)
+        months.append(f"{d.year - 1911}/{d.month:02d}")
 
-# 備註（長欄位）
-new_note = st.text_area("備註（可留空）", "", max_chars=300, height=80)
+    with col6:
+        new_acct_month = st.selectbox("帳款月份 (民國)", months)
 
-# ============================
-# 💾 儲存
-# ============================
-if st.button("新增資料"):
+    new_note = st.text_area("備註（可留空）", "", max_chars=300, height=80)
+
+    submit = st.form_submit_button("新增資料")
+
+if submit:
+
     new_row = [
         f"{new_date.year - 1911}{new_date.month:02d}{new_date.day:02d}",
         new_customer,
@@ -204,5 +204,6 @@ if st.button("新增資料"):
     try:
         sheet.append_row(new_row)
         st.success("新增成功！")
+        st.rerun()
     except Exception as e:
         st.error(f"新增失敗：{e}")
