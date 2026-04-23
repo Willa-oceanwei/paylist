@@ -215,7 +215,6 @@ if submit:
 
         st.cache_data.clear()
 
-        st.rerun()
 
     except Exception as e:
 
