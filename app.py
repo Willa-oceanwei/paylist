@@ -67,9 +67,10 @@ def to_minguo(dt):
 # 標題
 # =========================
 st.markdown(
-    "<h2 style='margin-top:0px'>💰 收帳查詢系統</h3>",
+    "<h2 style='margin-top:0px'>💰 收帳查詢系統</h2>",
     unsafe_allow_html=True
 )
+
 st.divider()
 
 
@@ -141,16 +142,25 @@ with st.form("add_form"):
         new_amount = st.number_input("金額", min_value=0)
 
     with col4:
-        new_type = st.selectbox("型式", ["", "支票", "現金", "支票+現金"])
+        new_type = st.selectbox(
+            "型式",
+            ["支票", "現金", "支票+現金"],
+            index=None,
+            placeholder="請選擇型式"
+        )
 
     col5, col6 = st.columns(2)
 
     with col5:
-        new_person = st.selectbox("負責人", ["", "德", "Q", "其他"])
+        new_person = st.selectbox(
+            "負責人",
+            ["德", "Q", "其他"],
+            index=None,
+            placeholder="請選擇負責人"
+        )
 
     # 帳款月份
     today = date.today()
-
     months = []
 
     for i in range(4):
@@ -174,11 +184,11 @@ if submit:
         st.warning("請輸入客戶名稱")
         st.stop()
 
-    if not new_type:
+    if new_type is None:
         st.warning("請選擇型式")
         st.stop()
 
-    if not new_person:
+    if new_person is None:
         st.warning("請選擇負責人")
         st.stop()
 
@@ -201,7 +211,7 @@ if submit:
             value_input_option="USER_ENTERED"
         )
 
-        st.success("✅ 新增成功")
+        st.toast("新增成功", icon="✅")
 
         st.cache_data.clear()
 
