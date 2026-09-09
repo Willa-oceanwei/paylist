@@ -7,7 +7,11 @@ import os
 
 os.environ["STREAMLIT_WATCH_RELOAD"] = "false"
 
-st.set_page_config(page_title="收帳查詢", layout="wide")
+st.set_page_config(
+    page_title="收帳查詢",
+    page_icon="💰",
+    layout="wide"
+)
 
 # =========================
 # Google Sheet 連線
